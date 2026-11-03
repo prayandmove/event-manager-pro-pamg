@@ -657,8 +657,8 @@ body.cl-open .modal{z-index:250}
 
 /* --- v6.0 : inscriptions publiques --- */
 body.pub-mode .app{display:none}
-.pub{align-items:flex-start}
-.pub-box{max-width:520px}
+.pub{flex-direction:column;align-items:center;justify-content:flex-start}
+.pub-box{max-width:520px;width:100%}
 .pub-brand img{width:44px;height:44px}
 .pub-brand b{font-size:18px}
 .pub-ev h1{font-size:26px;margin-bottom:8px}
@@ -686,6 +686,9 @@ body.pub-mode .app{display:none}
 .pub-mine{display:flex;flex-direction:column;gap:6px;font-size:14px}
 .pub-mine .m-actions{margin-top:4px}
 .pub-known a{font-weight:600}
+.pub-back{display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%;max-width:520px;margin:0 0 12px;padding-top:env(safe-area-inset-top)}
+.pub-back .btn{background:#fff;color:var(--navy)}
+.pub-back .chip{background:rgba(255,255,255,.14);color:#fff;border-color:transparent}
 .pub-foot{font-size:12px;color:var(--muted);text-align:center;margin:6px 0 0;line-height:1.45}
 .pub .btn{justify-content:center}
 .kpi.warnk{border-color:#F2D3A0;background:var(--amber-soft)}
@@ -1002,7 +1005,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
   'use strict';
 
   var B = window.BRAND || {};
-  var APP_VERSION = '6.1';
+  var APP_VERSION = '6.2';
   var KEY = B.storageKey || 'emp_v2';
 
   /* ---------- Outils ---------- */
@@ -4579,7 +4582,10 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
   function pubShow(html) {
     if (!PUB.el) { PUB.el = document.createElement('div'); PUB.el.id = 'pub'; PUB.el.className = 'cloud pub'; document.body.appendChild(PUB.el); }
     var logo = $('.brand-logo');
-    PUB.el.innerHTML = '<div class="cl-box pub-box"><div class="cl-brand pub-brand"><img src="' + (logo ? logo.src : '') + '" alt=""><div><b>Event Manager <span>Pro</span></b>' + (B.edition ? '<small>' + esc(B.edition) + '</small>' : '') + '</div></div>' + html +
+    // Bouton retour : aperçu ouvert depuis l'application, ou lien ouvert dans l'application installée (sinon aucun moyen de revenir).
+    var back = PUB.preview ? '<div class="pub-back"><button type="button" class="btn btn-ghost" data-act="pub-back">← Retour à l\'application</button><span class="chip">Aperçu : c\'est la page que voit le public</span></div>'
+      : isStandalone() ? '<div class="pub-back"><button type="button" class="btn btn-ghost" data-act="pub-home">← Ouvrir l\'application</button></div>' : '';
+    PUB.el.innerHTML = back + '<div class="cl-box pub-box"><div class="cl-brand pub-brand"><img src="' + (logo ? logo.src : '') + '" alt=""><div><b>Event Manager <span>Pro</span></b>' + (B.edition ? '<small>' + esc(B.edition) + '</small>' : '') + '</div></div>' + html +
       '<p class="pub-foot">Inscription gérée avec Event Manager Pro. Vos données servent uniquement à l\'organisateur pour cet événement et sont effacées 3 mois après l\'événement.</p></div>';
     PUB.el.hidden = false; document.body.classList.add('cl-open', 'pub-mode');
   }
@@ -4792,7 +4798,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
       (L.open ? '' : '<p class="small muted">Tant que c\'est fermé, la page s\'affiche mais personne ne peut s\'inscrire.</p>') +
       '<input class="cl-link" readonly value="' + esc(link) + '" onfocus="this.select()">' +
       '<div class="m-actions">' + btn('Envoyer sur WhatsApp', 'cl-wa', 'btn-gold', ' data-t="' + esc(regShareText(ev, link)) + '"') + btn('Copier le lien', 'cl-copy', '', ' data-l="' + esc(link) + '"') +
-      btn('QR code pour le flyer', 'reg-qr', '') + '<a class="btn" href="' + esc(link) + '" target="_blank" rel="noopener">Voir la page</a></div>' +
+      btn('QR code pour le flyer', 'reg-qr', '') + btn('Voir la page', 'reg-preview', '') + '</div>' +
       '<div class="reg-set"><span>Places : <b>' + (cap || 'illimitées') + '</b></span><span>Date limite : <b>' + (L.deadline ? fmtDate(L.deadline) : 'aucune') + '</b></span><span>Compteur visible par le public : <b>' + (L.show_count ? 'oui' : 'non') + '</b></span>' +
       btn('✎ Régler', 'reg-settings', 'btn-sm') + '</div></div>';
     if (tell.length) h += '<div class="cl-inv mt"><b>' + plur(tell.length, 'personne est sortie', 'personnes sont sorties') + ' de la liste d\'attente.</b> Prévenez-les sur WhatsApp (bouton 💬), puis touchez « ✓ Prévenu ».</div>';
@@ -4832,6 +4838,14 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
   Object.assign(ACT, {
     'reg-qr-save': function () { if (REG.qr && REG.qr.blob) saveFile(REG.qr.blob, REG.qr.name); else toast('Le QR code se prépare, réessayez dans une seconde.'); },
     'pub-ics': function () { var i = PUB.info || {}; if (i.start) saveFile(new Blob([regIcs(i.name, i.start, i.end, i.place)], { type: 'text/calendar' }), 'evenement.ics'); },
+    'pub-back': function () {
+      PUB.preview = false; PUB.code = ''; PUB.tok = ''; PUB.info = null; PUB.mine = null; PUB.done = null; PUB.form = false; PUB.err = '';
+      if (PUB.el) { PUB.el.hidden = true; PUB.el.innerHTML = ''; }
+      document.body.classList.remove('cl-open', 'pub-mode');
+      if (PUB.title) document.title = PUB.title;
+      render(); window.scrollTo(0, 0);
+    },
+    'pub-home': function () { location.href = appRoot(); },
     'pub-again': function () { PUB.done = null; PUB.form = true; PUB.err = ''; pubRender(); },
     'pub-retry': function () { PUB.err = ''; pubStart(PUB.code, PUB.tok); },
     'pub-cancel': function (el) {
@@ -4867,6 +4881,11 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
           throw e;
         }), f.slug ? 'Réglages enregistrés. Nouveau lien : …/' + sl + '/inscription' : 'Réglages enregistrés.');
       });
+    },
+    'reg-preview': function () {
+      if (!REG.link) return;
+      PUB.title = document.title; PUB.preview = true; PUB.info = null; PUB.mine = null; PUB.done = null; PUB.form = false; PUB.err = '';
+      window.scrollTo(0, 0); pubStart(REG.link.code || REG.link);
     },
     'reg-qr': function (el, ev) { if (REG.link) regQr(regLinkOf(REG.link), ev); },
     'reg-csv': function (el, ev) { regCsv(ev); },
