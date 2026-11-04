@@ -675,6 +675,10 @@ body.pub-mode .app{display:none}
 .pub-full,.pub-left{font-size:14px;margin:0}
 .pub-left b{color:var(--gold-ink)}
 .pub-form select{border:1px solid var(--line-2);border-radius:10px;padding:11px 12px;font-size:16px;background:#fff;width:100%}
+.pub-guests{border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:10px 14px 4px;margin:0;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+.pub-guests legend{font-size:13px;font-weight:700;color:var(--ink-2);padding:0 6px}
+#pub-guests:empty{display:none}
+.reg-guests{font-size:13.5px;margin-top:3px;color:var(--ink-2)}
 .pub-hp{position:absolute!important;left:-9999px;width:1px;height:1px;overflow:hidden}
 .pub-consent span{font-size:13px;line-height:1.45;font-weight:400}
 .pub-ok,.pub-wait{border-radius:var(--r);padding:14px 16px}
@@ -938,7 +942,14 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
 
     /* ----- v6.0 : inscriptions publiques (lien ?inscription=CODE, sans compte) ----- */
     regInfo: function (code) { return sb.rpc('emp_reg_info', { p_code: code }).then(must); },
-    register: function (code, f) { return sb.rpc('emp_register', { p_code: code, p_name: f.name, p_phone: f.phone || '', p_email: f.email || '', p_people: f.people, p_consent: !!f.consent }).then(must); },
+    // v6.3 : avec les noms des invités. Si la base n'a pas encore le script v6.3, on inscrit quand même (sans les noms).
+    register: function (code, f) {
+      var a = { p_code: code, p_name: f.name, p_phone: f.phone || '', p_email: f.email || '', p_people: f.people, p_consent: !!f.consent };
+      return sb.rpc('emp_register', Object.assign({ p_guests: f.guests || [] }, a)).then(must).catch(function (e) {
+        if (/p_guests|Could not find the function|schema cache/i.test(String(e && e.message))) return sb.rpc('emp_register', a).then(must);
+        throw e;
+      });
+    },
     regStatus: function (token) { return sb.rpc('emp_reg_status', { p_token: token }).then(must); },
     regCancel: function (token) { return sb.rpc('emp_reg_cancel', { p_token: token }).then(must); },
     // Organisateur : réglages du lien et liste des inscrits de l'événement ouvert
@@ -947,7 +958,11 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     regSave: function (fields) { return sb.from('reg_links').update(fields).eq('space_id', spaceId).select('*').then(must).then(function (r) { return r[0]; }); },
     regList: function () {
       return sb.rpc('emp_reg_refresh', { p_space: spaceId }).then(must).then(function () {
-        return sb.from('registrations').select('id, name, phone, email, people, status, promoted, told, created_at, cancelled_at').eq('space_id', spaceId).order('created_at').then(must);
+        var cols = 'id, name, phone, email, people, status, promoted, told, created_at, cancelled_at';
+        return sb.from('registrations').select(cols + ', guests').eq('space_id', spaceId).order('created_at').then(must).catch(function (e) {
+          if (/guests/i.test(String(e && e.message))) return sb.from('registrations').select(cols).eq('space_id', spaceId).order('created_at').then(must); // base pas encore en v6.3
+          throw e;
+        });
       });
     },
     regUpdate: function (id, fields) { return sb.from('registrations').update(fields).eq('id', id).eq('space_id', spaceId).then(must); },
@@ -1005,7 +1020,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
   'use strict';
 
   var B = window.BRAND || {};
-  var APP_VERSION = '6.2';
+  var APP_VERSION = '6.3';
   var KEY = B.storageKey || 'emp_v2';
 
   /* ---------- Outils ---------- */
@@ -2240,7 +2255,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     h += '<div class="card mt"><input class="searchbox" data-input="people-filter" placeholder="Rechercher un nom…" aria-label="Rechercher"><div class="tbl-wrap mt"><table class="tbl" id="people-tbl"><thead><tr><th>Nom</th><th>Catégorie</th><th>Invité par</th><th class="c">Inscrit</th>' +
       days.map(function (d) { return '<th class="c">' + esc(fmtDate(d).replace('.', '')) + '</th>'; }).join('') + '</tr></thead><tbody>' +
       ev.participants.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'fr'); }).map(function (x) {
-        return '<tr data-name="' + esc(x.name.toLowerCase()) + '"><td><a href="#" data-act="edit-person" data-id="' + x.id + '"><b>' + esc(x.name) + '</b></a></td><td>' + esc(CATS[x.cat] || '') + '</td><td>' + esc(x.invitedBy || '') + '</td>' +
+        return '<tr data-name="' + esc((x.name + ' ' + regGuests(x.guests).join(' ')).toLowerCase()) + '"><td><a href="#" data-act="edit-person" data-id="' + x.id + '"><b>' + esc(x.name) + '</b></a>' + (regGuests(x.guests).length ? '<div class="small muted">' + esc(regGuestsTxt(x.guests)) + '</div>' : '') + '</td><td>' + esc(CATS[x.cat] || '') + '</td><td>' + esc(x.invitedBy || '') + '</td>' +
           '<td class="c"><input type="checkbox" data-chg="p-reg" data-id="' + x.id + '"' + (x.registered ? ' checked' : '') + ' aria-label="Inscrit"></td>' +
           days.map(function (d) { return '<td class="c"><input type="checkbox" data-chg="p-day" data-id="' + x.id + '" data-d="' + d + '"' + (x.days && x.days[d] ? ' checked' : '') + ' aria-label="Présent le ' + d + '"></td>'; }).join('') + '</tr>';
       }).join('') + '</tbody></table></div></div>';
@@ -4503,6 +4518,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     email: 'Cette adresse e-mail n\'est pas valide.',
     contact: 'Indiquez votre numéro WhatsApp ou votre e-mail (au moins un des deux).',
     people: 'Le nombre de personnes doit être entre 1 et 10.',
+    guests: 'Indiquez le prénom et le nom de chaque invité.',
     busy: 'Beaucoup d\'inscriptions en ce moment : réessayez dans quelques minutes.',
     already: 'Vous êtes déjà inscrit(e) avec ce numéro ou cette adresse e-mail.',
     forbidden: 'Seul l\'organisateur peut voir la liste des inscrits.'
@@ -4518,6 +4534,22 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     return fmtDate(s, true) + (e && e !== s ? ' au ' + fmtDate(e, true) : '');
   }
   function regPeople(n) { return plur(n || 1, 'personne', 'personnes'); }
+  /* v6.3 : noms des invités (la personne qui s'inscrit vient avec d'autres personnes : un nom pour chacune). */
+  function regGuests(g) { return Array.isArray(g) ? g.filter(function (x) { return typeof x === 'string' && x.trim(); }) : []; }
+  function regGuestsTxt(g) { g = regGuests(g); return g.length ? 'avec ' + g.join(', ') : ''; }
+  function pubGuestsHtml(n, vals) {
+    var h = '';
+    for (var k = 1; k < n; k++) h += '<label>' + (n > 2 ? 'Invité ' + k : 'Votre invité') + ' : prénom et nom *<input name="guest" data-i="' + k + '" autocomplete="off" maxlength="80" value="' + esc((vals && vals[k - 1]) || '') + '"></label>';
+    return h ? '<fieldset class="pub-guests"><legend>Les personnes qui viennent avec vous</legend>' + h + '</fieldset>' : '';
+  }
+  /* Quand on change le nombre de personnes, les cases pour les noms apparaissent (2 personnes = 1 nom d'invité). Ce qui est déjà écrit est gardé. */
+  document.addEventListener('change', function (e) {
+    var el = e.target;
+    if (!el || el.name !== 'people' || !el.closest || !el.closest('#pub-form')) return;
+    var box = $('#pub-guests'), vals = [].map.call(document.querySelectorAll('#pub-form [name=guest]'), function (x) { return x.value; });
+    if (vals.length) PUB.guests = vals;
+    if (box) box.innerHTML = pubGuestsHtml(+el.value || 1, PUB.guests || vals);
+  });
   /* v6.1 : lien lisible avec le nom de l'événement : …/event-manager-pro-pamg/gala-de-noel/inscription (le fichier 404.html du site
      renvoie ce chemin vers l'application). L'ancien lien « ?inscription=code » marche toujours. */
   var appRoot = function () { return location.origin + location.pathname.replace(/[a-z0-9-]+\/inscription\/?$/i, '').replace(/[^/]*$/, ''); };
@@ -4615,6 +4647,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
       '<label>Numéro WhatsApp <small>Pour recevoir les informations de l\'organisateur</small><input name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+49 151 23456789" maxlength="24"></label>' +
       '<label>E-mail <small>Si vous n\'avez pas WhatsApp</small><input name="email" type="email" autocomplete="email" maxlength="120"></label>' +
       '<label>Nombre de personnes (vous compris)<select name="people">' + opts + '</select></label>' +
+      '<div id="pub-guests">' + pubGuestsHtml(1) + '</div>' +
       '<label class="pub-hp" aria-hidden="true">Site web<input name="website" tabindex="-1" autocomplete="off"></label>' +
       '<label class="cl-radio pub-consent"><input type="checkbox" name="consent"> <span>J\'accepte que mon nom et mon contact soient utilisés <b>uniquement par l\'organisateur</b>, pour cet événement. Ils sont effacés 3 mois après l\'événement, et je peux annuler à tout moment.</span></label>' +
       '<p class="cl-err" id="pub-err">' + esc(PUB.err) + '</p>' +
@@ -4635,8 +4668,8 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     if (PUB.done) {
       var d = PUB.done;
       h += d.status === 'ok'
-        ? '<div class="pub-ok"><b>✅ C\'est noté !</b><p>Votre inscription est confirmée (n° ' + d.number + ', ' + regPeople(d.people) + '). À bientôt !</p></div>'
-        : '<div class="pub-wait"><b>⏳ Vous êtes sur la liste d\'attente</b><p>Rang <b>' + d.number + '</b>. Si une place se libère, vous passez automatiquement et l\'organisateur vous prévient.</p></div>';
+        ? '<div class="pub-ok"><b>✅ C\'est noté !</b><p>Votre inscription est confirmée (n° ' + d.number + ', ' + regPeople(d.people) + (regGuests(d.guests).length ? ' : vous, ' + esc(regGuests(d.guests).join(', ')) : '') + '). À bientôt !</p></div>'
+        : '<div class="pub-wait"><b>⏳ Vous êtes sur la liste d\'attente</b><p>Rang <b>' + d.number + '</b>' + (regGuests(d.guests).length ? ' (vous, ' + esc(regGuests(d.guests).join(', ')) + ')' : '') + '. Si une place se libère, vous passez automatiquement et l\'organisateur vous prévient.</p></div>';
       h += pubMineBox(PUB.code, d.token, 'Gardez votre lien personnel : il sert à voir votre inscription ou à l\'annuler.');
       if (i.start) h += btn('📅 Ajouter à mon agenda', 'pub-ics', '');
       h += btn('Inscrire une autre personne', 'pub-again', 'btn-ghost');
@@ -4650,8 +4683,8 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
   function pubRenderMine() {
     var m = PUB.mine;
     if (!m.found) return pubShow('<div class="cl-inv bad">Cette inscription n\'existe plus (annulée ou effacée après l\'événement).</div>' + (PUB.code ? '<a class="btn" href="' + esc(regLinkOf(PUB.code)) + '">Voir la page de l\'événement</a>' : ''));
-    var st = m.status === 'ok' ? '<div class="pub-ok"><b>✅ Inscription confirmée</b><p>' + esc(m.name) + ' · ' + regPeople(m.people) + '</p></div>'
-      : m.status === 'wait' ? '<div class="pub-wait"><b>⏳ Liste d\'attente : rang ' + m.rank + '</b><p>' + esc(m.name) + ' · ' + regPeople(m.people) + '. Si une place se libère, vous passez automatiquement.</p></div>'
+    var st = m.status === 'ok' ? '<div class="pub-ok"><b>✅ Inscription confirmée</b><p>' + esc(m.name) + ' · ' + regPeople(m.people) + (regGuests(m.guests).length ? '<br>' + esc(regGuestsTxt(m.guests)) : '') + '</p></div>'
+      : m.status === 'wait' ? '<div class="pub-wait"><b>⏳ Liste d\'attente : rang ' + m.rank + '</b><p>' + esc(m.name) + ' · ' + regPeople(m.people) + (regGuests(m.guests).length ? ' (' + esc(regGuestsTxt(m.guests)) + ')' : '') + '. Si une place se libère, vous passez automatiquement.</p></div>'
         : '<div class="cl-inv">Inscription annulée.</div>';
     var h = pubEventHtml(m) + st;
     if (m.status !== 'cancelled') h += pubMineBox(m.code, PUB.tok, 'Votre lien personnel') + btn('Annuler mon inscription', 'pub-cancel', 'btn-danger');
@@ -4681,16 +4714,19 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     if (PUB.busy) return;
     var v = function (n) { var x = f.querySelector('[name=' + n + ']'); return x ? (x.type === 'checkbox' ? x.checked : x.value.trim()) : ''; };
     var data = { name: v('name'), phone: v('phone'), email: v('email'), people: +v('people') || 1, consent: v('consent') };
-    var err = data.name.length < 2 ? REG_ERR.name : !data.phone && !data.email ? REG_ERR.contact
+    var gEls = [].slice.call(f.querySelectorAll('[name=guest]')).slice(0, data.people - 1);
+    data.guests = gEls.map(function (x) { return x.value.trim().replace(/\s+/g, ' '); });
+    var gBad = gEls.filter(function (x, k) { return data.guests[k].length < 2; })[0];
+    var err = data.name.length < 2 ? REG_ERR.name : gBad || data.guests.length !== data.people - 1 ? REG_ERR.guests : !data.phone && !data.email ? REG_ERR.contact
       : data.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(data.email) ? REG_ERR.email : !data.consent ? REG_ERR.consent : '';
     var shown = $('#pub-err');
-    if (err) { if (shown) shown.textContent = err; return; }
+    if (err) { if (shown) shown.textContent = err; if (gBad && err === REG_ERR.guests) gBad.focus(); return; }
     if (v('website')) { PUB.done = { status: 'ok', number: '—', people: data.people, token: '' }; return pubRender(); } // robot : on fait semblant
     PUB.busy = true; PUB.err = ''; PUB.saved = data;
     var b = f.querySelector('button[type=submit]'); if (b) { b.disabled = true; b.textContent = 'Envoi…'; }
     Cloud.register(PUB.code, data).then(function (r) {
       PUB.busy = false; PUB.form = false;
-      PUB.done = { status: r.status, number: r.number, token: r.token, people: data.people };
+      PUB.done = { status: r.status, number: r.number, token: r.token, people: data.people, guests: data.guests }; PUB.guests = null;
       lsSet('emp_reg_' + PUB.code, r.token);
       return Cloud.regInfo(PUB.code).then(function (i) { PUB.info = i; }, noop).then(pubRender);
     }, function (e) {
@@ -4702,6 +4738,8 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     });
   }
   document.addEventListener('submit', function (e) { if (e.target.id === 'pub-form') { e.preventDefault(); pubSubmit(e.target); } });
+  // v6.3 : le message d'erreur disparaît dès qu'on corrige le formulaire.
+  document.addEventListener('input', function (e) { var er = e.target && e.target.closest && e.target.closest('#pub-form') && $('#pub-err'); if (er && er.textContent) er.textContent = ''; });
 
   /* ===== Côté organisateur : rubrique « Inscriptions publiques » ===== */
   var REG = { sid: null, link: null, list: [], at: 0, busy: false, err: '' };
@@ -4746,9 +4784,9 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     });
     Object.keys(ok).forEach(function (id) {
       var r = ok[id], x = ev.participants.filter(function (p) { return p.regId === id; })[0];
-      var note = 'Inscription en ligne' + (r.people > 1 ? ' · ' + r.people + ' personnes' : '');
-      if (!x) { ev.participants.push({ id: uid('u'), regId: id, name: r.name, cat: 'public', invitedBy: '', phone: r.phone || r.email || '', registered: true, days: {}, note: note, people: r.people }); changed = true; }
-      else if (x.people !== r.people || x.name !== r.name) { x.people = r.people; x.name = r.name; x.note = note; changed = true; }
+      var gs = regGuests(r.guests), note = 'Inscription en ligne' + (r.people > 1 ? ' · ' + r.people + ' personnes' : '') + (gs.length ? ' · ' + regGuestsTxt(gs) : '');
+      if (!x) { ev.participants.push({ id: uid('u'), regId: id, name: r.name, cat: 'public', invitedBy: '', phone: r.phone || r.email || '', registered: true, days: {}, note: note, people: r.people, guests: gs }); changed = true; }
+      else if (x.people !== r.people || x.name !== r.name || stable(x.guests || []) !== stable(gs)) { x.people = r.people; x.name = r.name; x.note = note; x.guests = gs; changed = true; }
     });
     if (changed) save();
   }
@@ -4771,7 +4809,9 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     if (r.status === 'ok' && r.promoted && !r.told) acts += btn('✓ Prévenu', 'reg-told', 'btn-sm', ' data-id="' + r.id + '"');
     if (r.status === 'wait') acts += btn('Confirmer quand même', 'reg-confirm', 'btn-sm', ' data-id="' + r.id + '" title="Donner une place même si c\'est complet"');
     if (r.status !== 'cancelled') acts += btn('Supprimer', 'reg-del', 'btn-sm btn-ghost', ' data-id="' + r.id + '"');
-    return '<div class="reg-row"><span class="reg-n">' + n + '</span><div class="reg-main"><b>' + esc(r.name) + '</b> <span class="chip">' + regPeople(r.people) + '</span> ' + chips +
+    var gs = regGuests(r.guests), guests = gs.length ? '<div class="reg-guests">👥 Invités : ' + gs.map(function (g) { return '<b>' + esc(g) + '</b>'; }).join(', ') + '</div>'
+      : r.people > 1 ? '<div class="reg-guests muted">👥 Noms des invités non indiqués</div>' : '';
+    return '<div class="reg-row"><span class="reg-n">' + n + '</span><div class="reg-main"><b>' + esc(r.name) + '</b> <span class="chip">' + regPeople(r.people) + '</span> ' + chips + guests +
       '<div class="reg-c">' + contact + '<small class="muted">' + (r.status === 'cancelled' ? 'Annulé le ' + fmtStamp(r.cancelled_at) : 'Inscrit le ' + fmtStamp(r.created_at)) + '</small></div></div>' +
       (acts ? '<div class="reg-acts">' + acts + '</div>' : '') + '</div>';
   }
@@ -4780,7 +4820,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     var h = vhead('Inscriptions publiques', 'Un lien pour que tout le monde s\'inscrive à l\'événement, <b>sans compte</b>. Mettez-le sur le flyer (QR code) ou envoyez-le sur WhatsApp.',
       R.link ? btn('↻ Actualiser', 'reg-refresh', 'btn-ghost') : '');
     if (!ON.on) return h + '<div class="card">' + empty('Les inscriptions publiques marchent avec un compte en ligne. Connectez-vous dans « Aide & réglages ».') + '</div>';
-    if (R.err === 'sql') return h + '<div class="card"><div class="cl-inv bad">La base de données n\'est pas encore à jour pour les inscriptions : lancez une fois le script <b>SQL v6.1</b> dans Supabase (SQL Editor), puis rechargez la page.</div></div>';
+    if (R.err === 'sql') return h + '<div class="card"><div class="cl-inv bad">La base de données n\'est pas encore à jour pour les inscriptions : lancez une fois le script <b>SQL v6.3</b> dans Supabase (SQL Editor), puis rechargez la page.</div></div>';
     if (!R.at) { regAuto(); if (!R.busy) setTimeout(function () { regLoad(); }, 0); return h + '<div class="card"><p class="muted">Chargement…</p></div>'; }
     if (R.err) h += '<div class="cl-inv bad mb">' + esc(R.err) + '</div>';
     if (!R.link) return h + '<div class="card new-ev-empty"><h2>Pas encore de lien d\'inscription</h2><p class="muted">Créez le lien, puis ouvrez les inscriptions. Les places sont les « Personnes attendues » de l\'événement' + (ev.expected ? ' (' + ev.expected + ')' : '') + ' ; quand c\'est complet, les suivants vont en liste d\'attente.</p><div class="mt">' + btn('Créer le lien d\'inscription', 'reg-create', 'btn-gold btn-lg') + '</div></div>';
@@ -4811,7 +4851,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     return h;
   }
   function regFind(el) { var id = el.getAttribute('data-id'); return REG.list.filter(function (r) { return r.id === id; })[0]; }
-  function regDo(p, msg) { return p.then(function () { if (msg) toast(msg); REG.at = 0; return regLoad(); }, function (e) { var m = regErr(e); toast(m === 'sql' ? 'Lancez d\'abord le script SQL v6.1 dans Supabase.' : m); render(); }); }
+  function regDo(p, msg) { return p.then(function () { if (msg) toast(msg); REG.at = 0; return regLoad(); }, function (e) { var m = regErr(e); toast(m === 'sql' ? 'Lancez d\'abord le script SQL v6.3 dans Supabase.' : m); render(); }); }
   function regQr(link, ev) {
     openForm('QR code pour le flyer', [{ type: 'note', k: '_n', html: '<div class="reg-qr" id="reg-qr"><p class="muted">Préparation du QR code…</p></div><p class="small muted">Imprimez-le sur le flyer ou l\'affiche : on le scanne avec l\'appareil photo du téléphone, et la page d\'inscription s\'ouvre.</p>' }], {}, function () {}, { saveLabel: 'Fermer' });
     (window.qrcode ? Promise.resolve() : loadScript(QR_LIB)).then(function () {
@@ -4829,8 +4869,8 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
   function regCsv(ev) {
     var q = function (v) { v = String(v == null ? '' : v); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
     var st = { ok: 'Confirmé', wait: 'Liste d\'attente', cancelled: 'Annulé' };
-    var rows = [['Statut', 'Nom', 'Personnes', 'WhatsApp', 'E-mail', 'Inscrit le', 'Annulé le']].concat(REG.list.map(function (r) {
-      return [st[r.status] + (r.promoted && r.status === 'ok' ? ' (sorti de la liste d\'attente)' : ''), r.name, r.people, r.phone, r.email, fmtStamp(r.created_at), r.cancelled_at ? fmtStamp(r.cancelled_at) : ''];
+    var rows = [['Statut', 'Nom', 'Personnes', 'Invités', 'WhatsApp', 'E-mail', 'Inscrit le', 'Annulé le']].concat(REG.list.map(function (r) {
+      return [st[r.status] + (r.promoted && r.status === 'ok' ? ' (sorti de la liste d\'attente)' : ''), r.name, r.people, regGuests(r.guests).join(', '), r.phone, r.email, fmtStamp(r.created_at), r.cancelled_at ? fmtStamp(r.cancelled_at) : ''];
     }));
     var blob = new Blob(['﻿' + rows.map(function (r) { return r.map(q).join(';'); }).join('\r\n')], { type: 'text/csv;charset=utf-8' });
     saveFile(blob, 'Inscriptions_' + fileName(ev.name) + '_' + today() + '.csv');
@@ -4846,7 +4886,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
       render(); window.scrollTo(0, 0);
     },
     'pub-home': function () { location.href = appRoot(); },
-    'pub-again': function () { PUB.done = null; PUB.form = true; PUB.err = ''; pubRender(); },
+    'pub-again': function () { PUB.done = null; PUB.form = true; PUB.err = ''; PUB.guests = null; pubRender(); },
     'pub-retry': function () { PUB.err = ''; pubStart(PUB.code, PUB.tok); },
     'pub-cancel': function (el) {
       if (!confirm('Annuler votre inscription ? Votre place sera donnée à la personne suivante.')) return;
