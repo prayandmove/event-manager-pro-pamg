@@ -16,11 +16,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>:root{
-  --gold:#E8B52C; --gold-light:#F7D46A; --gold-ink:#94690A; --gold-soft:#FDF5DD;
+  --gold:#E8B52C; --gold-light:#F7D46A; --gold-ink:#86600A; --gold-soft:#FDF5DD;
   --navy:#0A1230; --navy-2:#141E46; --black:#05070F;
   --bg:#F5F6FA; --card:#FFFFFF; --ink:#0A1230; --ink-2:#3A4365; --muted:#5A627E;
   --line:#E3E6EF; --line-2:#CDD2E0;
-  --green:#178A5C; --green-soft:#E3F5EC; --red:#C93C3C; --red-soft:#FCE9E9; --amber:#B86E00; --amber-soft:#FFF1DA; --blue-soft:#E8EEFB;
+  --green:#14794F; --green-soft:#E3F5EC; --red:#B53030; --red-soft:#FCE9E9; --amber:#955800; --amber-soft:#FFF1DA; --blue-soft:#E8EEFB;
   --r-lg:18px; --r:12px; --r-sm:8px; --side:256px;
   --f-title:'Playfair Display',Georgia,serif; --f-body:'DM Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
   --shadow:0 1px 2px rgba(10,18,48,.05),0 6px 20px rgba(10,18,48,.06);
@@ -158,8 +158,8 @@ h1,h2,h3,.kpi b,.ring-txt b,.mring b,.evdate b,.big-num{font-variant-numeric:lin
 .trow-main small{color:var(--muted);font-size:12.5px;display:block;margin-bottom:6px}
 .pct{font-weight:700;font-size:14px;width:46px;text-align:right}
 .team-card{border-top:4px solid var(--gold);cursor:pointer;display:flex;flex-direction:column;gap:10px}
-.team-card .tc-top{display:flex;align-items:flex-start;gap:10px}
-.team-card .tc-top h3{flex:1}
+.team-card .tc-top{display:flex;align-items:flex-start;gap:6px 10px;flex-wrap:wrap}
+.team-card .tc-top h3{flex:1 1 130px;min-width:0}
 .team-card .tc-meta{font-size:13px;color:var(--ink-2)}
 .team-card .tc-foot{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
 
@@ -468,7 +468,7 @@ textarea.big{width:100%;min-height:110px;border:1px solid var(--line-2);border-r
 .money-tbl td.num .btn{margin-left:6px}
 .sec-title{font-size:18px;margin:22px 0 10px}
 .meeting{border-left:4px solid var(--gold)}
-.meeting.is-past{border-left-color:var(--line-2);opacity:.92}
+.meeting.is-past{border-left-color:var(--line-2)}
 .agenda{margin:6px 0 0;padding-left:20px;display:grid;gap:2px}
 .rsvp-me{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 4px;padding:10px 12px;background:var(--bg);border-radius:10px}
 .rsvp-me span{font-weight:600;margin-right:4px}
@@ -714,6 +714,17 @@ body.pub-mode .app{display:none}
 .reg-qr img{width:240px;max-width:100%;height:auto;image-rendering:pixelated;border:1px solid var(--line);border-radius:8px}
 .mb{margin-bottom:14px}
 @media (max-width:640px){.reg-row{flex-wrap:wrap}.reg-acts{width:100%;justify-content:flex-start;padding-left:38px}}
+
+/* v6.4 : zones à toucher d'au moins 44 px sur téléphone (cases à cocher), sans changer le dessin */
+.tap-chk{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;margin:-8px 0;cursor:pointer}
+@media (max-width:820px){
+  .subs li label{min-height:44px;align-items:center}
+  .m-solo{display:flex;align-items:center;min-height:44px}
+  .tbl td.c{min-width:44px;height:44px}
+  input[type=checkbox]{width:20px;height:20px}
+  [data-act][role=button]:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+}
+[data-act][role=button]:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 </style>
 </head>
 <body>
@@ -1020,7 +1031,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
   'use strict';
 
   var B = window.BRAND || {};
-  var APP_VERSION = '6.3';
+  var APP_VERSION = '6.4';
   var KEY = B.storageKey || 'emp_v2';
 
   /* ---------- Outils ---------- */
@@ -1519,12 +1530,12 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
       else if (p < 100 && m.deadline && diffDays(t, m.deadline) <= 3) out.push({ l: 'warn', x: 'Échéance proche : « ' + m.title + ' » (' + tn + ') pour ' + rel(m.deadline) + '.', go: go });
       if (!m.subtasks.length && !m.done) out.push({ l: 'info', x: '« ' + m.title + ' » n\'est pas encore découpée en tâches (' + tn + ').', go: go });
       if (m.question && !m.answer) out.push({ l: 'warn', x: 'Question sans réponse de ' + tn + ' : « ' + m.question + ' »', go: go });
-      if (m.req > 0 && m.alloc == null && m.reqDate && diffDays(t, m.reqDate) <= 7) out.push({ l: m.reqDate < t ? 'bad' : 'warn', x: tn + ' a besoin de ' + fmtMoney(m.req) + ' pour « ' + m.title + ' » ' + (m.reqDate < t ? 'depuis le ' : 'pour le ') + fmtDate(m.reqDate) + ' : montant pas encore accordé.', go: tid ? go : 'budget' });
+      if (!isMember() && m.req > 0 && m.alloc == null && m.reqDate && diffDays(t, m.reqDate) <= 7) out.push({ l: m.reqDate < t ? 'bad' : 'warn', x: tn + ' a besoin de ' + fmtMoney(m.req) + ' pour « ' + m.title + ' » ' + (m.reqDate < t ? 'depuis le ' : 'pour le ') + fmtDate(m.reqDate) + ' : montant pas encore accordé.', go: tid ? go : 'budget' });
     });
     if (!tid) ev.teams.forEach(function (tm) { if (tStatus(tm) === 'reserve') out.push({ l: 'warn', x: tm.name + ' a envoyé un OK avec réserve : à accepter ou refuser.', go: 'team:' + tm.id }); });
     if (!tid) {
       var r = readiness(ev);
-      if (ev.okDeadline && t > ev.okDeadline && !r.ready && phase(ev) === 'before') out.push({ l: 'bad', x: (r.n - r.green) + ' équipe(s) n\'ont pas donné un OK complet alors que la date limite est passée.', go: 'dash' });
+      if (ev.okDeadline && t > ev.okDeadline && !r.ready && phase(ev) === 'before') out.push({ l: 'bad', x: (r.n - r.green > 1 ? (r.n - r.green) + ' équipes n\'ont pas donné' : (r.n - r.green) + ' équipe n\'a pas donné') + ' un OK complet alors que la date limite est passée.', go: 'dash' });
       var sp = sum(ev.expenses, 'amount'), pl = planned(ev);
       if (pl && sp > pl) out.push({ l: 'bad', x: 'Budget dépassé : ' + fmtMoney(sp) + ' dépensés pour ' + fmtMoney(pl) + ' prévus.', go: 'budget' });
     }
@@ -1543,7 +1554,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     var col = p >= 100 ? '#2BB673' : '#E8B52C';
     return '<div class="ring' + (dark ? ' dark' : '') + '"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="' + r + '" fill="none" stroke="' + track + '" stroke-width="10"/>' +
       '<circle cx="60" cy="60" r="' + r + '" fill="none" stroke="' + col + '" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '"/></svg>' +
-      '<div class="ring-txt"><b>' + p + '%</b><small>' + (label || 'préparé') + '</small></div></div>';
+      '<div class="ring-txt"><b>' + p + ' %</b><small>' + (label || 'préparé') + '</small></div></div>';
   }
   /* Petit cercle de pourcentage (à côté du OK de chaque chef) : vert à 100 %, orange si OK avec réserve. */
   function miniRing(p, st) {
@@ -1562,6 +1573,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
   /* Montants d'une mission : « demandé » se modifie par le chef (et l'organisateur), « accordé » par l'organisateur seulement. */
   function moneyChips(m) {
     var er = canEditTeam(m.teamId), ea = isOrg();
+    if (isMember()) return ''; // un membre ne voit aucun montant (v4.4)
     if (!m.req && m.alloc == null && !er) return '';
     var pen = '<i class="pen" aria-hidden="true">✎</i>';
     var h = m.req ? (er ? '<button class="chip chip-edit" data-act="edit-req" data-m="' + m.id + '" title="Modifier le montant demandé">' : '<span class="chip">') + 'Demandé ' + fmtMoney(m.req) + (m.reqDate ? ' · pour le ' + fmtDate(m.reqDate) : '') + (er ? pen + '</button>' : '</span>')
@@ -1670,7 +1682,15 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     var V = { home: vHome, catalog: vCatalog, dash: vDash, teams: vTeams, team: vTeam, myteam: vTeam, missions: vMissions, program: vProgram, meetings: vMeetings, budget: vBudget, people: vPeople, live: vLive, debrief: vDebrief, settings: vSettings, roles: vRoles, notify: vNotify, regs: vRegs };
     if (ON.on && isOrg() && ev && (ui.view === 'dash' || ui.view === 'people')) regAuto(); // v6.0 : nombre d'inscrits à jour
     $('#view').innerHTML = (ui.view !== 'home' && ui.view !== 'settings' ? answerBanner() : '') + (V[ui.view] || vDash)(ev);
+    kbdReady($('#view'));
     document.title = (ev && ui.evOpen ? ev.name + ' · ' : '') + 'Event Manager Pro';
+  }
+  // v6.4 : chaque ligne ou carte cliquable s'atteint avec Tab et s'ouvre avec Entrée ou Espace.
+  function kbdReady(root) {
+    Array.prototype.forEach.call(root.querySelectorAll('div[data-act],li[data-act],tr[data-act],span[data-act]'), function (el) {
+      if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+      if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
+    });
   }
   function go(v, teamId) {
     ui.view = v; if (teamId) ui.teamId = teamId;
@@ -2053,7 +2073,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
   function progOfDay(ev, d) { return ev.program.filter(function (p) { return p.day === d; }).sort(function (a, b) { return a.start < b.start ? -1 : 1; }); }
   function duration(p) { var a = toMin(p.start), b = toMin(p.end); if (a == null || b == null || b <= a) return ''; var m = b - a; return (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60 ? m % 60 + ' min' : '').trim(); }
   function progRow(ev, p, live, cls) {
-    return '<li class="' + (cls || '') + (p.done ? ' done' : '') + '">' + (live ? '<input type="checkbox" data-chg="prog-done" data-id="' + p.id + '"' + (p.done ? ' checked' : '') + ' aria-label="Fait">' : '') +
+    return '<li class="' + (cls || '') + (p.done ? ' done' : '') + '">' + (live ? '<label class="tap-chk"><input type="checkbox" data-chg="prog-done" data-id="' + p.id + '"' + (p.done ? ' checked' : '') + ' aria-label="Fait"></label>' : '') +
       '<div class="tm">' + esc(p.start) + (p.end ? ' – ' + esc(p.end) : '') + '<small>' + duration(p) + '</small></div><div class="pt"><b>' + esc(p.title) + '</b>' + (p.notes ? '<small>' + esc(p.notes) + '</small>' : '') + '</div>' +
       (p.teamId ? teamChip(ev, p.teamId) : '') + (isOrg() ? '<button class="icon-btn" data-act="edit-prog" data-id="' + p.id + '" aria-label="Modifier" title="Modifier">✎</button>' : '') + '</li>';
   }
@@ -2249,7 +2269,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     var days = daysRange(ev.start, ev.end);
     var h = vhead('Participants & présences', 'Qui vient, qui a invité qui, et qui était là chaque jour.', btn('+ Ajouter une personne', 'new-person', 'btn-primary'));
     var reg = regCount(ev);
-    h += '<div class="kpis"><div class="kpi"><b>' + ev.participants.length + '</b><span>personnes sur la liste</span></div><div class="kpi"><b>' + reg + (ev.expected ? '/' + ev.expected : '') + '</b><span>inscrites' + (ev.expected ? ' / attendues' : '') + '</span></div>' +
+    h += '<div class="kpis"><div class="kpi"><b>' + ev.participants.length + '</b><span>' + (ev.participants.length > 1 ? 'personnes' : 'personne') + ' sur la liste</span></div><div class="kpi"><b>' + reg + (ev.expected ? '/' + ev.expected : '') + '</b><span>inscrites' + (ev.expected ? ' / attendues' : '') + '</span></div>' +
       days.slice(0, 2).map(function (d) { return '<div class="kpi"><b>' + ev.participants.filter(function (x) { return x.days && x.days[d]; }).length + '</b><span>présentes · ' + fmtDate(d) + '</span></div>'; }).join('') + '</div>';
     if (!ev.participants.length) return h + '<div class="mt">' + empty('La liste est vide.') + '</div>';
     h += '<div class="card mt"><input class="searchbox" data-input="people-filter" placeholder="Rechercher un nom…" aria-label="Rechercher"><div class="tbl-wrap mt"><table class="tbl" id="people-tbl"><thead><tr><th>Nom</th><th>Catégorie</th><th>Invité par</th><th class="c">Inscrit</th>' +
@@ -2357,7 +2377,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
     ]],
     ['event', '📅 Créer un événement', [
       'Dans « Mes événements », cliquez sur <b>« + Nouvel événement »</b>. Il commence <b>vide</b> (aucune mission déjà remplie). Pour une nouvelle édition, choisissez <b>« Comme … »</b> : informations, équipes, missions, tâches, programme et personnes de l\'ancien événement sont repris avec les nouvelles dates.',
-      'Les équipes, les chefs et les membres du dernier événement sont repris tout seuls, en brouillon. Vous gardez ou changez ce que vous voulez.',
+      'Vous cochez les <b>équipes habituelles</b> qui participent : leur chef et leurs membres habituels sont repris. Vous gardez ou changez ce que vous voulez.',
       '<b>Équipes habituelles</b> : vos équipes de service d\'un événement à l\'autre. Changer une équipe dans un événement ne change pas cette liste.',
       'Après l\'événement, <b>« Réutiliser pour un prochain événement »</b> (dans le Bilan) en fait un modèle.'
     ]],
@@ -2557,7 +2577,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
           options: clist.map(function (c) { return [c.id, '<span class="dot" style="background:' + esc(c.color) + '"></span>' + esc(c.name) + (c.lead ? ' <small class="muted">(' + esc(c.lead) + ')</small>' : '')]; }),
           hint: opt.from ? 'Les équipes de « ' + opt.from.name + ' » sont cochées, avec leurs missions et leurs tâches. Décochez celles qui ne servent pas.' : 'Cochez les équipes qui participent. Elles commencent sans mission : vous ajoutez les vôtres.' });
     } else {
-      fields.unshift({ type: 'note', k: '_n', html: 'Si vous changez le <b>premier jour</b>, les dates des missions, des tâches, des demandes de budget et du programme se décalent avec lui.' });
+      fields.unshift({ type: 'note', k: '_n', html: 'Si vous changez le <b>premier jour</b>, les dates des missions, des tâches, des demandes de budget, du programme et des réunions se décalent avec lui.' });
     }
     var vals = ev ? ev : { type: 'conference', start: addDays(today(), 30), organizer: state.orgName };
     // v6.1 : « à partir d'un événement semblable » : on reprend ses informations ; on choisit seulement les nouvelles dates.
@@ -2574,10 +2594,10 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
         if (!v.okDeadline) e.okDeadline = addDays(e.start, -2);
         if (opt.from) n = copyFromEvent(e, opt.from, v.teams);
         else cats.forEach(function (c) { if (v.teams.indexOf(c.id) >= 0) { addTeamToEvent(e, c, false); n++; } });
-        log(e, 'a créé l\'événement avec ' + n + ' équipe(s).');
+        log(e, 'a créé l\'événement avec ' + plur(n, 'équipe', 'équipes') + '.');
         if (opt.onCreate) { opt.onCreate(e); return; }
         state.events.push(e); state.eventId = e.id; ui.view = 'teams'; ui.evOpen = true;
-        toast('Événement créé avec ' + n + ' équipe(s). Vérifiez maintenant les chefs.');
+        toast('Événement créé avec ' + plur(n, 'équipe', 'équipes') + '. Vérifiez maintenant les chefs.');
       } else {
         var shift = v.start !== ev.start ? diffDays(ev.start, v.start) : 0;
         ['name', 'type', 'place', 'start', 'okDeadline', 'expected', 'budget', 'organizer', 'description', 'paypal', 'goal'].forEach(function (k) { ev[k] = v[k]; });
@@ -2591,7 +2611,8 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
             m.subtasks.forEach(function (s) { if (s.due) s.due = addDays(s.due, shift); });
           });
           ev.program.forEach(function (p) { p.day = addDays(p.day, shift); });
-          toast('Dates décalées de ' + shift + ' jour(s) : missions, tâches et programme suivent.');
+          (ev.meetings || []).forEach(function (mt) { if (mt.date) mt.date = addDays(mt.date, shift); });
+          toast('Dates décalées de ' + plur(Math.abs(shift), 'jour', 'jours') + (shift < 0 ? ' en arrière' : '') + ' : missions, tâches, programme et réunions suivent.');
         }
         if (ev.end < ev.start) ev.end = ev.start;
         log(ev, 'a modifié l\'événement.');
@@ -2621,7 +2642,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
       } else if (!t.catId) { var nc = catFromTeam(t); nc.hidden = true; state.catalog.push(nc); t.catId = nc.id; }
     }, t ? { deleteLabel: 'Retirer de l\'événement', onDelete: function () {
       var n = teamMissions(ev, t.id).length;
-      if (!confirm('Retirer l\'équipe « ' + t.name + ' » de cet événement' + (n ? ' avec ses ' + n + ' mission(s)' : '') + ' ? Elle reste dans vos équipes habituelles.')) return false;
+      if (!confirm('Retirer l\'équipe « ' + t.name + ' » de cet événement' + (n ? ' avec ' + plur(n, 'mission', 'missions') : '') + ' ? Elle reste dans vos équipes habituelles.')) return false;
       dropFiles(ev, teamFiles(ev, t.id)); ev.files = ev.files.filter(function (f) { return f.teamId !== t.id; });
       ev.teams = ev.teams.filter(function (x) { return x.id !== t.id; });
       ev.missions = ev.missions.filter(function (m) { return m.teamId !== t.id; });
@@ -2640,7 +2661,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
       if (v.cat === 'new') { setTimeout(function () { formTeam(ev, null); }, 0); return false; }
       var c = catOf(v.cat), t = addTeamToEvent(ev, c, v.tplM);
       log(ev, 'a ajouté l\'équipe « ' + t.name + ' » à l\'événement.');
-      toast('Équipe « ' + t.name + ' » ajoutée' + (teamMissions(ev, t.id).length ? ' avec ' + teamMissions(ev, t.id).length + ' mission(s)' : '') + '.');
+      toast('Équipe « ' + t.name + ' » ajoutée' + (teamMissions(ev, t.id).length ? ' avec ' + plur(teamMissions(ev, t.id).length, 'mission', 'missions') : '') + '.');
     }, { saveLabel: 'Ajouter' });
   }
 
@@ -4987,7 +5008,7 @@ window.EMP_CLOUD = { url: 'https://shoxardpvorqprzqdfgg.supabase.co', key: 'eyJh
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !$('#modal').hidden) closeModal();
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.card[data-act]')) { e.preventDefault(); e.target.click(); }
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-act][role=button]:not(button):not(a)')) { e.preventDefault(); e.target.click(); }
   });
   document.addEventListener('change', function (e) {
     var el = e.target, k = el.getAttribute && el.getAttribute('data-chg');
