@@ -743,6 +743,13 @@ body.pub-mode .app{display:none}
 .pub-gender input{width:20px;height:20px;margin:0}
 .pub-guest{display:flex;flex-direction:column;gap:6px;padding-bottom:6px}
 .reg-gender{margin-bottom:0}
+
+/* v6.6 : cases de date / heure sur iPad et iPhone (Safari leur donne une largeur minimale
+   qui les faisait déborder de leur demi-colonne et toucher la case d'à côté). */
+.f-row{min-width:0}
+.f-row input[type=date],.f-row input[type=time],.f-row input[type=datetime-local]{-webkit-appearance:none;appearance:none;display:block;width:100%;min-width:0;max-width:100%;min-height:42px;line-height:1.3;text-align:left;color:var(--ink,#1a1a1a)}
+.f-row input[type=date]::-webkit-date-and-time-value,.f-row input[type=time]::-webkit-date-and-time-value{text-align:left;margin:0;min-height:1.3em}
+.f-row input[type=date]::-webkit-calendar-picker-indicator,.f-row input[type=time]::-webkit-calendar-picker-indicator{margin-left:auto}
 </style>
 </head>
 <body>
@@ -3350,7 +3357,7 @@ var qrcode = function() {
   'use strict';
 
   var B = window.BRAND || {};
-  var APP_VERSION = '6.5';
+  var APP_VERSION = '6.6';
   var KEY = B.storageKey || 'emp_v2';
 
   /* ---------- Outils ---------- */
@@ -7534,7 +7541,7 @@ var qrcode = function() {
   setInterval(function () { if (ui.view === 'live' && $('#modal').hidden && !document.activeElement.matches('input,textarea,select')) render(); }, 60000);
 
   cloudStart();
-  window.EMP = { state: function () { return state; }, version: APP_VERSION, cloud: ON, save: function () { save(); render(); }, decompose: function () { return decompose(state); } };
+  window.EMP = { form: openForm, state: function () { return state; }, version: APP_VERSION, cloud: ON, save: function () { save(); render(); }, decompose: function () { return decompose(state); } };
 })();
 </script>
 </body>
